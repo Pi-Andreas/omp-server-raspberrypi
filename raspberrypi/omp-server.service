@@ -1,0 +1,21 @@
+# systemd unit that keeps the open.mp server running on a Raspberry Pi and
+# starts it at boot. Replace "pi" with your user, then:
+#
+#   sudo cp raspberrypi/omp-server.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now omp-server
+#   journalctl -u omp-server -f
+[Unit]
+Description=open.mp server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/omp-server
+ExecStart=/home/pi/omp-server/omp-server
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

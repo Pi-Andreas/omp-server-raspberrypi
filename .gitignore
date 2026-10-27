@@ -313,3 +313,8 @@ cmake_install.cmake
 *-targets.cmake
 CTestTestfile.cmake
 *Config.cmake
+build-raspberrypi/
+raspberrypi/.conan2/
+raspberrypi/dist/
+raspberrypi/build.log
+raspberrypi/.last-run
