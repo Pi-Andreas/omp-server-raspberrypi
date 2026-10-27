@@ -116,6 +116,35 @@ PawnScript::~PawnScript()
 	tryLoad("");
 }
 
+#ifdef AMX_WIDE_POINTERS
+// A registered native's pointer is wider than its `address` cell and overwrites the name offset
+// after it, so its name can't come from `GETENTRYNAME`.  The nametable is in order, with the
+// native names straight after the public names, so walk it instead.  Since *all* native pointers
+// might be clobbered we need to start with the last public name.  Returns the first native's name,
+// or `nullptr` for old AMX versions.
+static char* amx_FirstNativeName(AMX_HEADER* hdr)
+{
+	int numpublics = NUMENTRIES(hdr, publics, natives);
+	if (numpublics)
+	{
+		// Get the name of the last public, then skip it with its NULL.  (`GETENTRY` doesn't
+		// parenthesise its index, so no arithmetic in the argument.)
+		--numpublics;
+		char* curname = GETENTRYNAME(hdr, GETENTRY(hdr, publics, numpublics));
+		return curname + strlen(curname) + 1;
+	}
+	if (USENAMETABLE(hdr))
+	{
+		// Probably a rare case, but we could have 0 publics, in which case the nametable
+		// pointer is already the start of the native names and we don't need to skip over
+		// anything.
+		return (char*)hdr + hdr->nametable;
+	}
+	// Old AMX versions.
+	return nullptr;
+}
+#endif
+
 int AMXAPI amx_GetNativeByIndex(AMX const* amx, int index, AMX_NATIVE_INFO* ret)
 {
 	AMX_HEADER*
@@ -139,28 +168,10 @@ int AMXAPI amx_GetNativeByIndex(AMX const* amx, int index, AMX_NATIVE_INFO* ret)
 			ret->func = (AMX_NATIVE)((AMX_FUNCWIDE*)func)->address;
 			// We know the index, and we know that the nametable is in order.  We can't use the
 			// offset in `func` to jump in to that table, but we can search through it
-			// manually (and sadly linearly).  Since *all* native pointers might be clobbered we
-			// need to start with the last public name instead.
-			int numpublics = NUMENTRIES(hdr, publics, natives);
-			char* curname;
-			if (numpublics)
+			// manually (and sadly linearly).
+			char* curname = amx_FirstNativeName(hdr);
+			if (curname == nullptr)
 			{
-				// Get the name of the last public, then skip it.
-				--numpublics;
-				curname = GETENTRYNAME(hdr, GETENTRY(hdr, publics, numpublics));
-				// Skip the current name, with its NULL.
-				curname = curname + strlen(curname) + 1;
-			}
-			else if (USENAMETABLE(hdr))
-			{
-				// Probably a rare case, but we could have 0 publics, in which case the nametable
-				// pointer is already the start of the native names and we don't need to skip over
-				// anything.
-				curname = (char*)hdr + hdr->nametable;
-			}
-			else
-			{
-				// Old AMX versions.
 				return AMX_ERR_VERSION;
 			}
 			while (index--)
@@ -403,10 +414,25 @@ __attribute__((noinline)) int AMXAPI amx_Register_impl(AMX* amx, const AMX_NATIV
 
 	uintptr_t funcidx = 0;
 
+#ifdef AMX_WIDE_POINTERS
+	// Natives registered by an earlier call have lost their name offset; reading it anyway points
+	// up to 4GB past the header (64KB on aarch64 Linux, past the end of a small script).
+	char* nextname = amx_FirstNativeName(hdr);
+#endif
+
 	err = AMX_ERR_NONE;
 	func = GETENTRY(hdr, natives, 0);
 	for (i = 0; i < numnatives; i++, func = (AMX_FUNCPART*)((unsigned char*)func + hdr->defsize))
 	{
+#ifdef AMX_WIDE_POINTERS
+		char* name = nextname ? nextname : GETENTRYNAME(hdr, func);
+		if (nextname)
+		{
+			nextname = nextname + strlen(nextname) + 1;
+		}
+#else
+		char* name = GETENTRYNAME(hdr, func);
+#endif
 		// Special case:
 		//
 		//   samp-gdk hooks `funcidx` to inject its own version.  It does this by just writing
@@ -415,7 +441,7 @@ __attribute__((noinline)) int AMXAPI amx_Register_impl(AMX* amx, const AMX_NATIV
 		//   `funcidx`, when there can be more with external native names.  So this code, while it
 		//   isn't really our job, fixes both those issues.
 		//
-		if (strcmp("funcidx", GETENTRYNAME(hdr, func)) == 0)
+		if (strcmp("funcidx", name) == 0)
 		{
 			if (func->address == 0)
 			{
@@ -436,7 +462,7 @@ __attribute__((noinline)) int AMXAPI amx_Register_impl(AMX* amx, const AMX_NATIV
 				continue;
 			}
 		}
-		funcptr = (list != NULL) ? findfunction(GETENTRYNAME(hdr, func), list, number) : NULL;
+		funcptr = (list != NULL) ? findfunction(name, list, number) : NULL;
 		if (func->address == 0)
 		{
 			/* this function is not yet located */
@@ -447,7 +473,7 @@ __attribute__((noinline)) int AMXAPI amx_Register_impl(AMX* amx, const AMX_NATIV
 		}
 		else if (funcptr != NULL && PawnManager::Get()->core)
 		{
-			PawnManager::Get()->core->logLn(LogLevel::Warning, "Tried to register native which is already registered: %s", GETENTRYNAME(hdr, func));
+			PawnManager::Get()->core->logLn(LogLevel::Warning, "Tried to register native which is already registered: %s", name);
 		} /* if */
 	} /* for */
 	if (err == AMX_ERR_NONE)
