@@ -6,8 +6,8 @@ The [open.mp](https://github.com/openmultiplayer/open.mp) server, built for
 This repo is a fork of upstream open.mp. Everything on top of upstream is in
 a few commits, listed at
 [the compare view](https://github.com/openmultiplayer/open.mp/compare/master...Pi-Andreas:omp-server-raspberrypi:master):
-an arm64 build in Docker, a deploy script, a systemd unit and one upstream
-crash fix. Nothing is compiled on the Pi itself.
+an arm64 build in Docker, a deploy script, systemd units, a usage tracker
+and one upstream crash fix. Nothing is compiled on the Pi itself.
 
 ### Requirements
 
@@ -27,7 +27,8 @@ cd omp-server
 ```
 
 That unpacks to `~/omp-server` (the server, `components/`, empty
-`gamemodes/`, `filterscripts/` etc. and `omp-server.service`) and writes a
+`gamemodes/`, `filterscripts/` etc., `omp-server.service` and the usage
+tracker `omp-usage.py`) and writes a
 default `config.json`. Then:
 
 1. Copy your gamemode (`.amx`) into `gamemodes/` and name it in
@@ -52,6 +53,69 @@ sudo systemctl enable --now omp-server
 journalctl -u omp-server -f
 ```
 
+### Track usage
+
+`omp-usage.py` (in the same folder) records a sample every minute: players
+online, the server's CPU and memory, upload and download on the Pi's network
+interface, free memory, temperature and throttling flags. Samples go to
+`usage/usage-YYYY-MM.csv`.
+
+```bash
+./omp-usage.py record &      # or install omp-usage.service to run it at boot
+./omp-usage.py report        # summary of the last 7 days (--days N)
+```
+
+Once real players have been on at different player counts, the report also
+fits CPU and upload against players and prints the cost per player on that Pi
+and the player count at which the main thread would reach 80% of a core.
+Throttling flags other than `0x0` mean the Pi is short on power or cooling.
+
+### Capacity and which Pi to use
+
+**Measured** on a Raspberry Pi 4 Model B (1.8 GHz, 1 GB) with server-side
+NPCs jogging around a 1 km square of Los Santos (default 200 m stream radius),
+averaged over 30 s:
+
+| Moving NPCs | Main thread (% of one core) | Server RAM |
+|---:|---:|---:|
+| 0 | 0.5% | 96 MB |
+| 100 | 3.8% | 145 MB |
+| 200 | 7.9% | 153 MB |
+| 400 | 11.0% | 169 MB |
+| 700 | 24.5% | 194 MB |
+| 990 | 41.8% | 219 MB |
+
+The game loop runs on one core, so "% of one core" is what limits player
+count. The Pi stayed at 40 °C with no throttling. NPCs cover simulation and
+streaming but not networking or gamemode scripts, so a real player costs more:
+the estimates below assume 3–5 times the NPC cost per player.
+
+**Bandwidth** (estimated from the sync protocol; the tracker measures the
+real figure): a moving player sends about 30 sync packets a second, roughly
+25–30 kbit/s of download per player. The server relays each player's sync to
+every player streamed near them, about 12 kbit/s per nearby moving player.
+
+| Server style | Upload per player | 50 players | 100 players | 200 players |
+|---|---:|---:|---:|---:|
+| Spread out (RP, freeroam; ~8 nearby) | ~60 kbit/s | ~3 Mbit/s | ~6 Mbit/s | ~12 Mbit/s |
+| Crowded (DM, events; ~20 nearby) | ~150–250 kbit/s | ~8–12 Mbit/s | ~15–25 Mbit/s | ~30–50 Mbit/s |
+
+On a home connection the upload speed is usually the real limit, not the Pi.
+
+**Which Pi** (player counts assume a typical gamemode and enough upload):
+
+| Model | One core vs Pi 4 | Comfortable players | Notes |
+|---|---:|---:|---|
+| Pi 5 (4 or 8 GB) | ~2–3× | 300+ | Big or script-heavy servers, or MySQL on the same Pi. Needs the 27 W supply and active cooling. |
+| **Pi 4 (2 GB)** | 1× (measured) | ~150–200 | Best value. 1 GB is enough for the server alone; 4 GB if MySQL runs on the same Pi. |
+| Pi 3B / 3B+ | ~0.4× | up to ~50 | Small servers. Ethernet is limited to ~300 Mbit/s (USB 2). |
+| Zero 2 W | ~0.3× | private only | 512 MB and Wi-Fi only; not recommended. |
+
+Use wired Ethernet rather than Wi-Fi, the official power supply (under-voltage
+throttles the CPU) and a heatsink or fan for long sessions. The server needs
+about 100 MB plus ~0.1 MB per player slot; MySQL 8 on the same Pi adds about
+400 MB (MariaDB less).
+
 ### Build it yourself
 
 Any machine with Docker can build it. An Apple Silicon Mac or other arm64
@@ -69,6 +133,7 @@ PI=pi@raspberrypi.local ./raspberrypi/deploy.sh
 | `raspberrypi/build.sh` | Builds the server for linux/arm64 in a Debian 12 container and packs it into `raspberrypi/dist/open.mp-linux-arm64.tar.gz`. |
 | `raspberrypi/deploy.sh` | Copies that tarball to the Pi over SSH and unpacks it into `~/omp-server`, keeping your config and scripts. |
 | `raspberrypi/omp-server.service` | systemd unit (also shipped in the tarball). |
+| `raspberrypi/omp-usage.py`, `omp-usage.service` | Usage tracker and its systemd unit (also shipped in the tarball). |
 
 OpenSSL and libstdc++ are linked statically. The first build downloads and
 compiles the Conan dependencies, which takes a while; they are cached in
@@ -78,6 +143,9 @@ compiles the Conan dependencies, which takes a while; they are cached in
 
 - **Plugins:** only Linux **arm64** `.so` plugins load. Most legacy SA-MP
   plugins ship only as 32-bit x86 builds and will not work on the Pi.
+- **MySQL:** [omp-MySQL](https://github.com/Mac-Andreas/omp-MySQL) 1.0.2 and
+  later ship a Raspberry Pi build (`mysql-linux-arm64.zip`), tested on this
+  server against MySQL 8.4 over TLS 1.3.
 - **Memory:** an idle server running a small gamemode uses about 100 MB of
   RAM, so a 1 GB Pi 4 is enough for small servers.
 

@@ -39,12 +39,13 @@ docker run --rm --platform linux/arm64 \
 OUT="$ROOT/$BUILD_DIR/Output/$CONFIG/Server"
 DIST="$ROOT/raspberrypi/dist"
 # The archive unpacks to omp-server/, ready to run, with the usual empty
-# script folders and the systemd unit next to the binary.
+# script folders, the systemd units and the usage tracker next to the binary.
 STAGE="$DIST/omp-server"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"/{gamemodes,filterscripts,scriptfiles,plugins,models}
 cp -R "$OUT/omp-server" "$OUT/components" "$STAGE/"
-cp "$ROOT/raspberrypi/omp-server.service" "$STAGE/"
+cp "$ROOT/raspberrypi/omp-server.service" "$ROOT/raspberrypi/omp-usage.service" \
+    "$ROOT/raspberrypi/omp-usage.py" "$STAGE/"
 # No macOS ._* AppleDouble files or extended attributes in the archive.
 COPYFILE_DISABLE=1 tar --no-xattrs -C "$DIST" -czf "$DIST/open.mp-linux-arm64.tar.gz" omp-server
 echo "built: $DIST/open.mp-linux-arm64.tar.gz"

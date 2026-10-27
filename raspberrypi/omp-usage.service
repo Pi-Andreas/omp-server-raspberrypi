@@ -1,0 +1,21 @@
+# systemd unit that records the server's resource use once a minute (see
+# omp-usage.py). Replace "pi" with your user, then:
+#
+#   sudo cp omp-usage.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now omp-usage
+#
+# Summary at any time: cd ~/omp-server && ./omp-usage.py report
+[Unit]
+Description=open.mp server usage tracker
+After=omp-server.service
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/omp-server
+ExecStart=/usr/bin/python3 /home/pi/omp-server/omp-usage.py record --interval 60
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
