@@ -150,7 +150,7 @@ tarball you unpack in the server folder:
 | ColAndreas 1.4.0 | [Pi-Andreas/ColAndreas-raspberrypi](https://github.com/Pi-Andreas/ColAndreas-raspberrypi/releases/latest) | Bundles its Bullet libraries. Bring your own `ColAndreas.cadb`. The collision world uses a few hundred MB of RAM. |
 | MapAndreas 1.2.1 | [Pi-Andreas/samp-plugin-mapandreas-raspberrypi](https://github.com/Pi-Andreas/samp-plugin-mapandreas-raspberrypi/releases/latest) | Includes both heightmaps and a fix for a crash on server shutdown. |
 | omp-MySQL | [Mac-Andreas/omp-MySQL](https://github.com/Mac-Andreas/omp-MySQL/releases) | open.mp component; `mysql-linux-arm64.zip` from v1.0.2. Tested against MySQL 8.4 over TLS 1.3. |
-| streamer 2.9.6 | [Pi-Andreas/samp-streamer-plugin-raspberrypi](https://github.com/Pi-Andreas/samp-streamer-plugin-raspberrypi) | **In progress.** Its sampgdk library hooks the server by patching x86 machine code, which has to be ported to ARM first. |
+| streamer 2.9.6 | [Pi-Andreas/samp-streamer-plugin-raspberrypi](https://github.com/Pi-Andreas/samp-streamer-plugin-raspberrypi/releases/latest) | Ported to ARM: sampgdk's x86 code hooks have an AArch64 version, and native tables use 64-bit pointers. |
 
 ### Notes
 
