@@ -48,6 +48,9 @@ nano config.json
 ./omp-server
 ```
 
+Also change `rcon.password` from `changeme` (or set `rcon.enable` to
+`false`); the server exits at startup while the default password is set.
+
 Compiled `.amx` scripts are platform independent, so gamemodes built on
 Windows, macOS or Linux run unchanged. Players connect on UDP port **7777**;
 forward it on your router to make the server public.
@@ -59,8 +62,8 @@ To keep it running in the background and start it at boot, see
 
 - **Plugins:** only Linux **arm64** `.so` plugins load. Most legacy SA-MP
   plugins ship only as 32-bit x86 builds and will not work on the Pi.
-- **Memory:** an empty server uses little RAM, so a 1 GB Pi 4 is enough for
-  small servers.
+- **Memory:** an idle server running a small gamemode uses about 100 MB of
+  RAM, so a 1 GB Pi 4 is enough for small servers.
 
 ---
 
