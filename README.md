@@ -139,15 +139,25 @@ OpenSSL and libstdc++ are linked statically. The first build downloads and
 compiles the Conan dependencies, which takes a while; they are cached in
 `raspberrypi/.conan2` for later builds.
 
+### Plugins and components on the Pi
+
+Only Linux **arm64** `.so` builds load on the Pi; most legacy SA-MP plugins
+ship only as 32-bit x86 builds. These have Pi builds, each released as a
+tarball you unpack in the server folder:
+
+| Plugin | Pi build | Notes |
+|---|---|---|
+| ColAndreas 1.4.0 | [Pi-Andreas/ColAndreas-raspberrypi](https://github.com/Pi-Andreas/ColAndreas-raspberrypi/releases/latest) | Bundles its Bullet libraries. Bring your own `ColAndreas.cadb`. The collision world uses a few hundred MB of RAM. |
+| MapAndreas 1.2.1 | [Pi-Andreas/samp-plugin-mapandreas-raspberrypi](https://github.com/Pi-Andreas/samp-plugin-mapandreas-raspberrypi/releases/latest) | Includes both heightmaps and a fix for a crash on server shutdown. |
+| omp-MySQL | [Mac-Andreas/omp-MySQL](https://github.com/Mac-Andreas/omp-MySQL/releases) | open.mp component; `mysql-linux-arm64.zip` from v1.0.2. Tested against MySQL 8.4 over TLS 1.3. |
+| streamer 2.9.6 | [Pi-Andreas/samp-streamer-plugin-raspberrypi](https://github.com/Pi-Andreas/samp-streamer-plugin-raspberrypi) | **In progress.** Its sampgdk library hooks the server by patching x86 machine code, which has to be ported to ARM first. |
+
 ### Notes
 
-- **Plugins:** only Linux **arm64** `.so` plugins load. Most legacy SA-MP
-  plugins ship only as 32-bit x86 builds and will not work on the Pi.
-- **MySQL:** [omp-MySQL](https://github.com/Mac-Andreas/omp-MySQL) 1.0.2 and
-  later ship a Raspberry Pi build (`mysql-linux-arm64.zip`), tested on this
-  server against MySQL 8.4 over TLS 1.3.
 - **Memory:** an idle server running a small gamemode uses about 100 MB of
-  RAM, so a 1 GB Pi 4 is enough for small servers.
+  RAM, so a 1 GB Pi 4 is enough for small servers. With ColAndreas and
+  MapAndreas (full heightmap) loaded the server uses about 500 MB, so take a
+  2 GB Pi or larger for a full gamemode.
 
 ---
 
