@@ -43,9 +43,13 @@ void NPCComponent::free()
 		release(npc->getID());
 	}
 
-	core->getEventDispatcher().removeEventHandler(this);
-	core->getPlayers().getPlayerDamageDispatcher().removeEventHandler(this);
-	core->getPlayers().getPoolEventDispatcher().removeEventHandler(this);
+	// core is only set in onLoad, which never runs for --default-config.
+	if (core)
+	{
+		core->getEventDispatcher().removeEventHandler(this);
+		core->getPlayers().getPlayerDamageDispatcher().removeEventHandler(this);
+		core->getPlayers().getPoolEventDispatcher().removeEventHandler(this);
+	}
 
 	if (vehicles)
 	{
