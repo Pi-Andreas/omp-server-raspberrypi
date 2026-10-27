@@ -21,9 +21,8 @@ set -euo pipefail
 cd ~
 mkdir -p "$DEST"
 rm -rf "$DEST/components"
-tar -C "$DEST" -xzf /tmp/open.mp-linux-arm64.tar.gz
+tar -C "$DEST" --strip-components=1 -xzf /tmp/open.mp-linux-arm64.tar.gz
 rm -f /tmp/open.mp-linux-arm64.tar.gz
-mkdir -p "$DEST/gamemodes" "$DEST/filterscripts" "$DEST/scriptfiles" "$DEST/plugins" "$DEST/models"
 echo "installed to ~/$DEST:"
 ls "$DEST"
 REMOTE

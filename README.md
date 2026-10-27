@@ -2,61 +2,77 @@
 
 The [open.mp](https://github.com/openmultiplayer/open.mp) server, built for
 **Raspberry Pi 4 / 5 running 64-bit Raspberry Pi OS** (or any arm64 Linux).
-The code is upstream open.mp; this repo adds a build that targets arm64 and a
-way to get it onto the Pi. Nothing is compiled on the Pi itself.
 
-| Path | What it does |
-|---|---|
-| `raspberrypi/build.sh` | Builds the server for linux/arm64 in Docker and packs it into `raspberrypi/dist/open.mp-linux-arm64.tar.gz`. |
-| `raspberrypi/deploy.sh` | Copies that tarball to the Pi over SSH and unpacks it into `~/omp-server`. |
-| `raspberrypi/omp-server.service` | systemd unit to keep the server running and start it at boot. |
+This repo is a fork of upstream open.mp. Everything on top of upstream is in
+a few commits, listed at
+[the compare view](https://github.com/openmultiplayer/open.mp/compare/master...Pi-Andreas:omp-server-raspberrypi:master):
+an arm64 build in Docker, a deploy script, a systemd unit and one upstream
+crash fix. Nothing is compiled on the Pi itself.
 
 ### Requirements
 
 - **Raspberry Pi 4 or 5** with a **64-bit** OS (`uname -m` prints `aarch64`).
   32-bit Raspberry Pi OS is not supported.
-- To build: any machine with Docker. An Apple Silicon Mac or other arm64 host
-  builds natively; an x86 host emulates arm64 and is much slower.
+- Raspberry Pi OS bookworm (Debian 12) or newer; the build needs glibc 2.36.
 
-### Build
+### Install from a release
 
-```bash
-git clone --recursive https://github.com/Mac-Andreas/omp-server-raspberrypi
-cd omp-server-raspberrypi
-./raspberrypi/build.sh
-```
-
-The build image is Debian 12 (glibc 2.36), so the binary runs on Raspberry
-Pi OS bookworm and newer. OpenSSL and libstdc++ are linked statically. The
-first build downloads and compiles the Conan dependencies, which takes a
-while; they are cached in `raspberrypi/.conan2` for later builds.
-
-### Install on the Pi
+On the Pi:
 
 ```bash
-PI=pi@raspberrypi.local ./raspberrypi/deploy.sh
-```
-
-Then on the Pi, write a default `config.json`, add your gamemode (`.amx`) to
-`~/omp-server/gamemodes`, name it in `config.json` under `pawn.main_scripts`
-(for example `"mygamemode 1"`), and start the server:
-
-```bash
-cd ~/omp-server
+curl -LO https://github.com/Pi-Andreas/omp-server-raspberrypi/releases/latest/download/open.mp-linux-arm64.tar.gz
+tar -xzf open.mp-linux-arm64.tar.gz
+cd omp-server
 ./omp-server --default-config
-nano config.json
-./omp-server
 ```
 
-Also change `rcon.password` from `changeme` (or set `rcon.enable` to
-`false`); the server exits at startup while the default password is set.
+That unpacks to `~/omp-server` (the server, `components/`, empty
+`gamemodes/`, `filterscripts/` etc. and `omp-server.service`) and writes a
+default `config.json`. Then:
+
+1. Copy your gamemode (`.amx`) into `gamemodes/` and name it in
+   `config.json` under `pawn.main_scripts`, for example `"mygamemode 1"`.
+2. Change `rcon.password` from `changeme` (or set `rcon.enable` to `false`).
+   The server exits at startup while the default password is set.
+3. Start it with `./omp-server`.
 
 Compiled `.amx` scripts are platform independent, so gamemodes built on
 Windows, macOS or Linux run unchanged. Players connect on UDP port **7777**;
 forward it on your router to make the server public.
 
-To keep it running in the background and start it at boot, see
-[`raspberrypi/omp-server.service`](raspberrypi/omp-server.service).
+### Run at boot
+
+`omp-server.service` keeps the server running and starts it at boot. Edit the
+user and paths in it (it assumes user `pi` and `/home/pi/omp-server`), then:
+
+```bash
+sudo cp omp-server.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now omp-server
+journalctl -u omp-server -f
+```
+
+### Build it yourself
+
+Any machine with Docker can build it. An Apple Silicon Mac or other arm64
+host builds natively; an x86 host emulates arm64 and is much slower.
+
+```bash
+git clone --recursive https://github.com/Pi-Andreas/omp-server-raspberrypi
+cd omp-server-raspberrypi
+./raspberrypi/build.sh
+PI=pi@raspberrypi.local ./raspberrypi/deploy.sh
+```
+
+| Path | What it does |
+|---|---|
+| `raspberrypi/build.sh` | Builds the server for linux/arm64 in a Debian 12 container and packs it into `raspberrypi/dist/open.mp-linux-arm64.tar.gz`. |
+| `raspberrypi/deploy.sh` | Copies that tarball to the Pi over SSH and unpacks it into `~/omp-server`, keeping your config and scripts. |
+| `raspberrypi/omp-server.service` | systemd unit (also shipped in the tarball). |
+
+OpenSSL and libstdc++ are linked statically. The first build downloads and
+compiles the Conan dependencies, which takes a while; they are cached in
+`raspberrypi/.conan2` for later builds.
 
 ### Notes
 
